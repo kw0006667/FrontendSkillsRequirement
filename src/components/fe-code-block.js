@@ -64,7 +64,8 @@ class FeCodeBlock extends LitElement {
   async _copy() {
     const code = this.querySelector(`[slot="${this._lang}"] code`)
     if (!code) return
-    await navigator.clipboard.writeText(code.textContent ?? '')
+    const didCopy = await copyText(code.textContent ?? '')
+    if (!didCopy) return
     this._copied = true
     setTimeout(() => { this._copied = false }, 1600)
   }
@@ -77,6 +78,34 @@ function labelFor(lang) {
     javascript: 'JavaScript',
     typescript: 'TypeScript',
   }[lang]
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      // Fall through to the textarea-based fallback for restricted browser contexts.
+    }
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.top = '-1000px'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+
+  try {
+    return document.execCommand('copy')
+  } catch {
+    return false
+  } finally {
+    textarea.remove()
+  }
 }
 
 customElements.define('fe-code-block', FeCodeBlock)

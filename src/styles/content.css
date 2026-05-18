@@ -114,6 +114,51 @@
   margin: 22px 0;
 }
 
+.concept-grid-expanded {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.application-grid,
+.example-notes,
+.section-lab {
+  display: grid;
+  gap: 14px;
+  margin: 18px 0 22px;
+}
+
+.application-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.example-notes,
+.section-lab {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.section-lab {
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-soft);
+}
+
+.section-lab h3,
+.example-notes h3 {
+  margin-top: 0;
+}
+
+.section-lab > div > :last-child,
+.example-notes > div > :last-child {
+  margin-bottom: 0;
+}
+
+.section-takeaways {
+  padding: 14px 16px 14px 34px;
+  border-left: 4px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+
 .mini-card {
   padding: 16px;
   border: 1px solid var(--color-border);
@@ -123,6 +168,10 @@
 
 .mini-card h3 {
   margin-top: 0;
+}
+
+.issue-map td:first-child {
+  min-width: 170px;
 }
 
 .table-wrap {
@@ -223,7 +272,11 @@
   }
 
   .tradeoff-grid,
-  .concept-grid {
+  .concept-grid,
+  .concept-grid-expanded,
+  .application-grid,
+  .example-notes,
+  .section-lab {
     grid-template-columns: 1fr;
   }
 

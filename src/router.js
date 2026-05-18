@@ -129,10 +129,39 @@ function addCopyButtons(container) {
     button.className = 'code-copy-btn standalone-copy-btn'
     button.textContent = '複製'
     button.addEventListener('click', async () => {
-      await navigator.clipboard.writeText(pre.querySelector('code')?.textContent ?? '')
+      const didCopy = await copyText(pre.querySelector('code')?.textContent ?? '')
+      if (!didCopy) return
       button.textContent = '已複製'
       setTimeout(() => { button.textContent = '複製' }, 1600)
     })
     pre.appendChild(button)
   })
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      // Fall back for local previews or embedded browsers that block Clipboard API writes.
+    }
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.top = '-1000px'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+
+  try {
+    return document.execCommand('copy')
+  } catch {
+    return false
+  } finally {
+    textarea.remove()
+  }
 }
