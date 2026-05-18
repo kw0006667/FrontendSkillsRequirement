@@ -1,0 +1,113 @@
+fe-demo-suite {
+  display: block;
+  margin: 26px 0;
+}
+
+.demo-shell {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.demo-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.demo-title {
+  margin: 0;
+  font-size: 0.96rem;
+}
+
+.demo-body {
+  padding: 16px;
+}
+
+.demo-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.demo-row label {
+  display: grid;
+  gap: 5px;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.demo-row input,
+.demo-row select,
+.demo-row textarea {
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 9px;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.demo-button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: white;
+  background: var(--color-accent);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.demo-output {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-code);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  overflow: auto;
+}
+
+.box-demo-frame {
+  display: grid;
+  place-items: center;
+  min-height: 220px;
+  border-radius: var(--radius-md);
+  background: repeating-linear-gradient(45deg, var(--color-bg-soft), var(--color-bg-soft) 12px, transparent 12px, transparent 24px);
+}
+
+.box-demo-box {
+  background: rgba(46, 199, 211, 0.34);
+  border: 12px solid rgba(10, 132, 255, 0.55);
+  outline: 20px solid rgba(255, 196, 77, 0.28);
+  transition: all var(--transition);
+}
+
+.canvas-demo {
+  width: 100%;
+  max-width: 520px;
+  height: 240px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.chat-stream {
+  min-height: 160px;
+  white-space: pre-wrap;
+}
+
+.composer {
+  width: 100%;
+  min-height: 84px;
+}

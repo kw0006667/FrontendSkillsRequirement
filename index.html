@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Senior Front-End Engineer 完整學習書籍：瀏覽器底層、HTML、CSS、效能、Wasm、Canvas/WebGL/WebGPU、GenAI UI 與面試訊號。" />
+    <meta name="theme-color" content="#f7fbff" />
+    <title>Frontend Interview Book — Senior Front-End Engineer 完整學習書</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" />
+    <link id="prism-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" />
+    <link id="prism-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" disabled />
+    <link rel="stylesheet" href="/src/styles/main.css" />
+  </head>
+  <body>
+    <header id="top-bar">
+      <button id="hamburger" aria-label="開啟章節目錄" aria-expanded="false">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+      <span class="top-bar-title">Frontend Interview Book</span>
+      <button id="theme-toggle-mobile" class="icon-button" aria-label="切換深淺色主題" title="切換深淺色主題">
+        <span class="theme-sun" aria-hidden="true">☀</span>
+        <span class="theme-moon" aria-hidden="true">☾</span>
+      </button>
+    </header>
+
+    <div id="overlay" aria-hidden="true"></div>
+
+    <aside id="mobile-drawer" aria-label="章節目錄" aria-hidden="true">
+      <div class="drawer-header">
+        <span>章節目錄</span>
+        <button id="drawer-close" aria-label="關閉章節目錄">×</button>
+      </div>
+      <nav id="drawer-nav"></nav>
+      <div class="drawer-footer">
+        <a class="github-link" href="https://github.com/kw0006667/FrontendSkillsRequirement" target="_blank" rel="noopener">GitHub Repository</a>
+      </div>
+    </aside>
+
+    <aside id="sections-panel" aria-label="本章節目" aria-hidden="true">
+      <div class="drawer-header">
+        <span>本章節目</span>
+        <button id="sections-close" aria-label="關閉本章節目">×</button>
+      </div>
+      <nav id="sections-nav"></nav>
+    </aside>
+
+    <div id="app">
+      <aside id="sidebar" aria-label="章節導覽">
+        <div class="sidebar-header">
+          <a class="site-logo" href="#" aria-label="回到首頁">
+            <span class="logo-icon">FE</span>
+            <span class="logo-text">
+              <span class="logo-title">Frontend Interview Book</span>
+              <span class="logo-sub">Senior Front-End Engineer</span>
+            </span>
+          </a>
+          <button id="theme-toggle" class="icon-button" aria-label="切換深淺色主題" title="切換深淺色主題">
+            <span class="theme-sun" aria-hidden="true">☀</span>
+            <span class="theme-moon" aria-hidden="true">☾</span>
+          </button>
+          <button id="sidebar-collapse-toggle" class="icon-button" aria-label="收起側欄" title="收起側欄">‹</button>
+        </div>
+        <div class="sidebar-nav-heading">Chapters</div>
+        <nav id="sidebar-nav"></nav>
+        <div class="sidebar-footer">
+          <a class="github-link" href="https://github.com/kw0006667/FrontendSkillsRequirement" target="_blank" rel="noopener">GitHub Repository</a>
+        </div>
+      </aside>
+
+      <main id="content-area" role="main">
+        <article class="chapter-content" id="chapter-content" aria-live="polite">
+          <section class="home-screen" id="home-screen">
+            <div class="home-copy">
+              <p class="home-kicker">Senior Front-End Engineer</p>
+              <h1>Frontend Interview Book</h1>
+              <p>從 URL 到像素、從 semantic HTML 到 WebGPU 與 GenAI UI，把前端面試常見題目整理成可閱讀、可操作、可複習的完整知識書。</p>
+              <div class="home-stats" aria-label="內容統計">
+                <div><strong>8</strong><span>Parts</span></div>
+                <div><strong>31</strong><span>Chapters</span></div>
+                <div><strong>7</strong><span>Appendices</span></div>
+                <div><strong>100+</strong><span>Signals</span></div>
+              </div>
+              <a class="home-cta" href="#ch1">開始閱讀</a>
+            </div>
+          </section>
+        </article>
+      </main>
+    </div>
+
+    <button id="sidebar-expand-toggle" class="icon-button" aria-label="展開側欄" title="展開側欄">›</button>
+    <button id="sections-toggle" aria-label="查看本章節目" aria-expanded="false">本章節目</button>
+
+    <div class="loading-overlay" id="loading-overlay" aria-hidden="true">
+      <div class="loading-spinner"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

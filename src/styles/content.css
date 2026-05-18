@@ -1,0 +1,242 @@
+.chapter-content {
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: 52px clamp(22px, 4vw, 44px) 80px;
+}
+
+.chapter-header {
+  margin-bottom: 34px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.chapter-num {
+  margin-bottom: 10px;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chapter-content h1 {
+  margin: 0 0 14px;
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.chapter-content h2 {
+  margin: 48px 0 14px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: clamp(1.32rem, 3vw, 1.72rem);
+  line-height: 1.25;
+  scroll-margin-top: 82px;
+}
+
+.chapter-content h3 {
+  margin: 30px 0 10px;
+  font-size: 1.12rem;
+  scroll-margin-top: 82px;
+}
+
+.chapter-content p {
+  margin: 0 0 16px;
+  color: var(--color-text-secondary);
+}
+
+.chapter-content ul,
+.chapter-content ol {
+  margin: 0 0 18px 1.25rem;
+  color: var(--color-text-secondary);
+}
+
+.chapter-content li {
+  margin-bottom: 5px;
+}
+
+.chapter-content strong {
+  color: var(--color-text);
+}
+
+.chapter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.callout {
+  margin: 22px 0;
+  padding: 16px 18px;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-sm);
+}
+
+.callout-title {
+  margin-bottom: 7px;
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+.callout > :last-child {
+  margin-bottom: 0;
+}
+
+.interview-signal {
+  border-left-color: var(--color-accent-2);
+}
+
+.tradeoff-grid,
+.concept-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 22px 0;
+}
+
+.mini-card {
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+
+.mini-card h3 {
+  margin-top: 0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin: 22px 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+
+.chapter-content table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.chapter-content th,
+.chapter-content td {
+  padding: 11px 13px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.chapter-content th {
+  color: var(--color-text);
+  background: var(--color-bg-soft);
+}
+
+.chapter-content tr:last-child td {
+  border-bottom: 0;
+}
+
+.chapter-content code:not([class]) {
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--color-accent);
+  background: var(--color-bg-code);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.chapter-footer {
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  margin-top: 60px;
+  padding-top: 22px;
+  border-top: 1px solid var(--color-border);
+}
+
+.chapter-footer a {
+  flex: 1;
+  max-width: 260px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  background: var(--color-bg-elevated);
+}
+
+.chapter-footer a:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-hover);
+  text-decoration: none;
+}
+
+.chapter-footer .next {
+  margin-left: auto;
+  text-align: right;
+}
+
+.footer-label,
+.footer-title {
+  display: block;
+}
+
+.footer-label {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.footer-title {
+  margin-top: 4px;
+  font-weight: 800;
+}
+
+.empty-state {
+  padding: 80px 20px;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .chapter-content {
+    padding: 28px 18px 56px;
+  }
+
+  .tradeoff-grid,
+  .concept-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chapter-footer {
+    flex-direction: column;
+  }
+
+  .chapter-footer a {
+    max-width: none;
+  }
+
+  .chapter-footer .next {
+    margin-left: 0;
+    text-align: left;
+  }
+}

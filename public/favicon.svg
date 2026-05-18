@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Frontend Interview Book">
+  <rect width="64" height="64" rx="14" fill="#f7fbff"/>
+  <path d="M15 14h24c5.5 0 10 4.5 10 10v26H25c-5.5 0-10-4.5-10-10V14Z" fill="#21a8f6"/>
+  <path d="M24 25h18M24 33h14M24 41h10" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+</svg>
