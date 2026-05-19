@@ -1,5 +1,23 @@
 import { LitElement, html } from 'lit'
 
+const RENDERING_PROPS = [
+  { name: 'width / height',   stages: [true, true, true, true],   label: 'Layout + Paint + Composite' },
+  { name: 'margin / padding', stages: [true, true, true, true],   label: 'Layout + Paint + Composite' },
+  { name: 'background-color', stages: [false, false, true, true], label: 'Paint + Composite only' },
+  { name: 'color',            stages: [false, false, true, true], label: 'Paint + Composite only' },
+  { name: 'box-shadow',       stages: [false, false, true, true], label: 'Paint + Composite only' },
+  { name: 'transform',        stages: [false, false, false, true], label: 'Composite only ✓' },
+  { name: 'opacity',          stages: [false, false, false, true], label: 'Composite only ✓' },
+  { name: 'filter (GPU)',     stages: [false, false, false, true], label: 'Composite only ✓' },
+]
+
+const STAGE_INFO = [
+  { icon: '🔄', name: 'Style',     desc: '套用 CSS 規則' },
+  { icon: '📐', name: 'Layout',    desc: '計算幾何大小與位置' },
+  { icon: '🖌', name: 'Paint',     desc: '生成繪圖指令' },
+  { icon: '🧩', name: 'Composite', desc: 'GPU 合成圖層輸出' },
+]
+
 class FeDemoSuite extends LitElement {
   static properties = {
     demo: { type: String },
@@ -8,6 +26,7 @@ class FeDemoSuite extends LitElement {
     _boxBorder: { state: true },
     _stream: { state: true },
     _composerCount: { state: true },
+    _activeProp: { state: true },
   }
 
   createRenderRoot() {
@@ -22,6 +41,7 @@ class FeDemoSuite extends LitElement {
     this._boxBorder = 12
     this._stream = ''
     this._composerCount = 0
+    this._activeProp = RENDERING_PROPS[0]
   }
 
   firstUpdated() {
@@ -42,6 +62,8 @@ class FeDemoSuite extends LitElement {
       gpu: this._renderGpuDemo,
       streaming: this._renderStreamingDemo,
       composer: this._renderComposerDemo,
+      navtiming: this._renderNavTimingDemo,
+      rendering: this._renderRenderingDemo,
     }
     const render = demos[this.demo] ?? this._renderFormDemo
     return render.call(this)
@@ -153,6 +175,73 @@ class FeDemoSuite extends LitElement {
         <textarea class="composer" placeholder="輸入訊息、@mention 或貼上檔案描述" @input=${event => { this._composerCount = event.target.value.length }}></textarea>
       </div>
       <div class="demo-output">字元數：${this._composerCount}。實作送出快捷鍵時，compositionstart 到 compositionend 期間不可攔截 Enter。</div>
+    `)
+  }
+
+  _renderNavTimingDemo() {
+    const [nav] = performance.getEntriesByType('navigation')
+    if (!nav) {
+      return this._shell('Navigation Timing API', html`
+        <div class="demo-output">Navigation Timing 資料不可用（可能在 iframe 中）。</div>
+      `)
+    }
+    const tls = nav.secureConnectionStart > 0 ? nav.connectEnd - nav.secureConnectionStart : 0
+    const rows = [
+      { stage: 'DNS Lookup',    ms: nav.domainLookupEnd - nav.domainLookupStart, color: '#0a84ff' },
+      { stage: 'TCP Connect',   ms: nav.connectEnd - nav.connectStart - tls,     color: '#2ec7d3' },
+      { stage: 'TLS Handshake', ms: tls,                                         color: '#9d6af5' },
+      { stage: 'TTFB',          ms: nav.responseStart - nav.requestStart,        color: '#f5a623' },
+      { stage: 'HTML Download', ms: nav.responseEnd - nav.responseStart,         color: '#4caf7d' },
+      { stage: 'DOM Interactive', ms: nav.domInteractive - nav.startTime,        color: '#e8505b' },
+      { stage: 'DOM Complete',  ms: nav.domComplete - nav.startTime,             color: '#8d6e4b' },
+    ]
+    const maxMs = Math.max(...rows.map(r => r.ms), 1)
+    return this._shell('Navigation Timing API — 本頁實際數據', html`
+      <div class="timing-bars">
+        ${rows.map(r => html`
+          <div class="timing-row">
+            <span class="timing-label">${r.stage}</span>
+            <div class="timing-bar" style="width:${Math.max(Math.round(r.ms / maxMs * 100), r.ms > 0 ? 2 : 0)}%;background:${r.color}"></div>
+            <span class="timing-value">${Math.round(r.ms)} ms</span>
+          </div>
+        `)}
+      </div>
+      <div class="demo-output" style="margin-top:12px;font-size:0.78rem">
+        提示：localhost 上 DNS/TLS 顯示 0ms 是正常的，它們已被 OS 快取或不需要 TLS。
+        把 <code>nav.domInteractive</code> 和 <code>nav.domComplete</code> 相比，
+        差距大時代表有 defer/async 腳本在 DOM 解析後繼續執行。
+      </div>
+    `)
+  }
+
+  _renderRenderingDemo() {
+    const active = this._activeProp
+    return this._shell('Rendering Pipeline — 哪些 CSS 操作觸發哪些階段', html`
+      <p style="font-size:0.84rem;color:var(--color-text-muted);margin-bottom:10px">
+        點擊 CSS 屬性，查看它會觸發哪些 rendering 階段：
+      </p>
+      <div class="prop-grid">
+        ${RENDERING_PROPS.map(p => html`
+          <button class="prop-btn ${active === p ? 'active' : ''}" @click=${() => { this._activeProp = p }}>
+            ${p.name}
+          </button>
+        `)}
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        ${STAGE_INFO.map((stage, i) => html`
+          ${i > 0 ? html`<span class="pipeline-arrow">→</span>` : ''}
+          <div class="pipeline-stage ${active.stages[i] ? 'triggered' : 'skipped'}">
+            <span class="pipeline-stage-icon">${stage.icon}</span>
+            <div>
+              <div class="pipeline-stage-name">${stage.name}</div>
+              <div class="pipeline-stage-desc">${stage.desc}</div>
+            </div>
+          </div>
+        `)}
+      </div>
+      <div class="demo-output" style="margin-top:12px">
+        <strong>${active.name}</strong> → ${active.label}
+      </div>
     `)
   }
 

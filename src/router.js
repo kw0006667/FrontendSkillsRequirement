@@ -50,6 +50,7 @@ async function loadChapter(id, sectionSlug) {
     addCopyButtons(article)
 
     if (window.Prism) window.Prism.highlightAllUnder(article)
+    renderMermaid(article)
 
     setActive(id, sectionSlug)
     scrollCleanup = initSectionSync(mod.metadata.sections)
@@ -110,6 +111,134 @@ function initSectionSync(sections = []) {
   window.addEventListener('scroll', onScroll, { passive: true })
   onScroll()
   return () => window.removeEventListener('scroll', onScroll)
+}
+
+function renderMermaid(container) {
+  const nodes = Array.from(container.querySelectorAll('.mermaid'))
+  if (!nodes.length) return
+
+  const doRender = () => {
+    window.__mermaid.run({ nodes }).then(() => {
+      requestAnimationFrame(() => initDiagramZoom(container))
+    })
+  }
+
+  if (window.__mermaid) { doRender(); return }
+  let attempts = 0
+  const retry = () => {
+    if (window.__mermaid) doRender()
+    else if (attempts++ < 20) setTimeout(retry, 150)
+  }
+  setTimeout(retry, 150)
+}
+
+function initDiagramZoom(container) {
+  container.querySelectorAll('.diagram-wrap').forEach(wrap => {
+    const svg = wrap.querySelector('svg')
+    if (!svg || wrap.dataset.zoomInit) return
+    wrap.dataset.zoomInit = '1'
+
+    // Natural dimensions from viewBox or attributes
+    const vb = svg.viewBox.baseVal
+    const naturalW = (vb && vb.width) || parseFloat(svg.getAttribute('width') || '0') || 640
+    const naturalH = (vb && vb.height) || parseFloat(svg.getAttribute('height') || '0') || 400
+
+    // Fix SVG size so transform-origin math is predictable
+    svg.removeAttribute('width')
+    svg.removeAttribute('height')
+    svg.style.width = `${naturalW}px`
+    svg.style.height = `${naturalH}px`
+    svg.style.maxWidth = 'none'
+    svg.style.display = 'block'
+    svg.style.transformOrigin = '0 0'
+
+    // Initial scale: fit to wrap width
+    const availW = wrap.clientWidth - 32
+    const initialScale = availW > 0 ? Math.min(1, availW / naturalW) : 1
+
+    let scale = initialScale, tx = 0, ty = 0
+
+    wrap.style.height = `${Math.ceil(naturalH * initialScale) + 40}px`
+
+    function apply() {
+      svg.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`
+    }
+    apply()
+
+    // Wheel zoom towards cursor
+    wrap.addEventListener('wheel', e => {
+      e.preventDefault()
+      const rect = wrap.getBoundingClientRect()
+      const ox = e.clientX - rect.left
+      const oy = e.clientY - rect.top
+      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15
+      const newScale = Math.max(0.15, Math.min(8, scale * factor))
+      tx = ox - (ox - tx) * (newScale / scale)
+      ty = oy - (oy - ty) * (newScale / scale)
+      scale = newScale
+      apply()
+    }, { passive: false })
+
+    // Drag pan
+    let dragging = false, sx = 0, sy = 0, stx = 0, sty = 0
+    wrap.addEventListener('mousedown', e => {
+      if (e.button !== 0) return
+      dragging = true; sx = e.clientX; sy = e.clientY; stx = tx; sty = ty
+      wrap.classList.add('is-dragging')
+    })
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return
+      tx = stx + e.clientX - sx
+      ty = sty + e.clientY - sy
+      apply()
+    })
+    window.addEventListener('mouseup', () => {
+      if (!dragging) return
+      dragging = false
+      wrap.classList.remove('is-dragging')
+    })
+
+    // Pinch zoom
+    let lastPinchDist = 0
+    wrap.addEventListener('touchstart', e => {
+      if (e.touches.length === 2) {
+        lastPinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        )
+      }
+    }, { passive: true })
+    wrap.addEventListener('touchmove', e => {
+      if (e.touches.length !== 2) return
+      e.preventDefault()
+      const d = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      )
+      scale = Math.max(0.15, Math.min(8, scale * d / lastPinchDist))
+      lastPinchDist = d
+      apply()
+    }, { passive: false })
+
+    // Zoom controls overlay
+    const controls = document.createElement('div')
+    controls.className = 'diagram-zoom-controls'
+    controls.innerHTML = `
+      <button class="diagram-zoom-btn" data-z="in" title="Zoom in">+</button>
+      <button class="diagram-zoom-btn" data-z="reset" title="Reset">↺</button>
+      <button class="diagram-zoom-btn" data-z="out" title="Zoom out">−</button>
+    `
+    controls.addEventListener('click', e => {
+      const btn = e.target.closest('[data-z]')
+      if (!btn) return
+      const z = btn.dataset.z
+      if (z === 'in') scale = Math.min(8, scale * 1.25)
+      else if (z === 'out') scale = Math.max(0.15, scale / 1.25)
+      else { scale = initialScale; tx = 0; ty = 0 }
+      apply()
+    })
+    wrap.appendChild(controls)
+  })
 }
 
 function wrapTables(container) {

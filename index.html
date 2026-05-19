@@ -102,6 +102,28 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs'
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        themeVariables: {
+          background: '#ffffff',
+          mainBkg: '#e8f4fd',
+          nodeBorder: '#7b9db8',
+          clusterBkg: '#f0f8ff',
+          clusterBorder: '#b8d0e8',
+          lineColor: '#5a8da8',
+          primaryTextColor: '#17202a',
+          secondaryColor: '#f0faf0',
+          tertiaryColor: '#fff8e8',
+          edgeLabelBackground: '#f7fbff',
+          fontFamily: 'ui-sans-serif, system-ui, -apple-system, sans-serif',
+          fontSize: '13px',
+        },
+      })
+      window.__mermaid = mermaid
+    </script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

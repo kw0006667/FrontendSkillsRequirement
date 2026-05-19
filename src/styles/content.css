@@ -164,10 +164,18 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg-elevated);
+  overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
 }
 
 .mini-card h3 {
   margin-top: 0;
+}
+
+.mini-card code {
+  word-break: break-all;
 }
 
 .issue-map td:first-child {
@@ -259,6 +267,103 @@
 .footer-title {
   margin-top: 4px;
   font-weight: 800;
+}
+
+.diagram-wrap {
+  position: relative;
+  margin: 22px 0;
+  padding: 20px 16px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  cursor: grab;
+  user-select: none;
+}
+
+.diagram-wrap.is-dragging {
+  cursor: grabbing;
+}
+
+.diagram-wrap .mermaid {
+  display: block;
+}
+
+.diagram-wrap .mermaid svg {
+  user-select: none;
+}
+
+.diagram-zoom-controls {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  z-index: 10;
+}
+
+.diagram-zoom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s, color 0.15s;
+}
+
+.diagram-zoom-btn:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.diagram-caption {
+  margin-top: 8px;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.info-table th:first-child,
+.info-table td:first-child {
+  white-space: nowrap;
+}
+
+.chapter-content .badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.badge-green { background: #dcf5e7; color: #136e35; }
+.badge-blue  { background: #daeeff; color: #0a5aaa; }
+.badge-amber { background: #fef3d0; color: #8a5500; }
+.badge-red   { background: #ffe5e5; color: #9b1b1b; }
+
+.chapter-content dl {
+  margin: 0 0 18px;
+}
+
+.chapter-content dt {
+  margin-top: 12px;
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.chapter-content dd {
+  margin: 2px 0 0 1.25rem;
+  color: var(--color-text-secondary);
 }
 
 .empty-state {
