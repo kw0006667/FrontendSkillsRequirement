@@ -6,9 +6,9 @@ const RENDERING_PROPS = [
   { name: 'background-color', stages: [false, false, true, true], label: 'Paint + Composite only' },
   { name: 'color',            stages: [false, false, true, true], label: 'Paint + Composite only' },
   { name: 'box-shadow',       stages: [false, false, true, true], label: 'Paint + Composite only' },
-  { name: 'transform',        stages: [false, false, false, true], label: 'Composite only ✓' },
-  { name: 'opacity',          stages: [false, false, false, true], label: 'Composite only ✓' },
-  { name: 'filter (GPU)',     stages: [false, false, false, true], label: 'Composite only ✓' },
+  { name: 'transform',        stages: [false, false, false, true], label: 'Composite only' },
+  { name: 'opacity',          stages: [false, false, false, true], label: 'Composite only' },
+  { name: 'filter (GPU)',     stages: [false, false, false, true], label: 'Composite only' },
 ]
 
 const STAGE_INFO = [
@@ -18,15 +18,47 @@ const STAGE_INFO = [
   { icon: '🧩', name: 'Composite', desc: 'GPU 合成圖層輸出' },
 ]
 
+const LANDMARK_REGIONS = [
+  { tag: 'header',  role: 'banner',          label: '頁首',   announce: '橫幅 landmark，<header>' },
+  { tag: 'nav',     role: 'navigation',      label: '主要導覽', announce: '導覽 landmark，主要導覽' },
+  { tag: 'main',    role: 'main',            label: '主要內容', announce: '主要 landmark' },
+  { tag: 'aside',   role: 'complementary',   label: '側欄補充', announce: '補充性 landmark，相關文章' },
+  { tag: 'footer',  role: 'contentinfo',     label: '頁尾',   announce: '內容資訊 landmark' },
+]
+
+const DISPLAY_MODES = [
+  { mode: 'block',       desc: 'outer: block, inner: flow — container 獨佔一行；子元素各自佔一行。' },
+  { mode: 'flex',        desc: 'outer: block, inner: flex — container 獨佔一行；子元素依 flex 橫向排列。' },
+  { mode: 'inline-flex', desc: 'outer: inline, inner: flex — container 流入行內，不獨佔一行；子元素依 flex 排列。' },
+  { mode: 'grid',        desc: 'outer: block, inner: grid — container 獨佔一行；子元素依 grid auto-columns 排列。' },
+  { mode: 'inline-grid', desc: 'outer: inline, inner: grid — container 流入行內；子元素依 grid 排列。' },
+]
+
+const SRCSET_IMAGES = [
+  { url: 'hero-400.jpg',  w: 400 },
+  { url: 'hero-800.jpg',  w: 800 },
+  { url: 'hero-1200.jpg', w: 1200 },
+  { url: 'hero-1600.jpg', w: 1600 },
+]
+
 class FeDemoSuite extends LitElement {
   static properties = {
     demo: { type: String },
-    _specificity: { state: true },
-    _boxPadding: { state: true },
-    _boxBorder: { state: true },
-    _stream: { state: true },
-    _composerCount: { state: true },
-    _activeProp: { state: true },
+    _specificity:    { state: true },
+    _boxPadding:     { state: true },
+    _boxBorder:      { state: true },
+    _stream:         { state: true },
+    _composerCount:  { state: true },
+    _activeProp:     { state: true },
+    // Part II demos
+    _activeLandmark: { state: true },
+    _displayMode:    { state: true },
+    _formDataOutput: { state: true },
+    _imeComposing:   { state: true },
+    _imeLog:         { state: true },
+    _dialogStatus:   { state: true },
+    _srcsetWidth:    { state: true },
+    _srcsetDpr:      { state: true },
   }
 
   createRenderRoot() {
@@ -42,6 +74,14 @@ class FeDemoSuite extends LitElement {
     this._stream = ''
     this._composerCount = 0
     this._activeProp = RENDERING_PROPS[0]
+    this._activeLandmark = LANDMARK_REGIONS[0]
+    this._displayMode = 'flex'
+    this._formDataOutput = ''
+    this._imeComposing = false
+    this._imeLog = []
+    this._dialogStatus = ''
+    this._srcsetWidth = 800
+    this._srcsetDpr = 2
   }
 
   firstUpdated() {
@@ -54,16 +94,22 @@ class FeDemoSuite extends LitElement {
 
   render() {
     const demos = {
-      form: this._renderFormDemo,
+      form:        this._renderFormDemo,
       specificity: this._renderSpecificityDemo,
-      box: this._renderBoxDemo,
-      resources: this._renderResourceDemo,
-      canvas: this._renderCanvasDemo,
-      gpu: this._renderGpuDemo,
-      streaming: this._renderStreamingDemo,
-      composer: this._renderComposerDemo,
-      navtiming: this._renderNavTimingDemo,
-      rendering: this._renderRenderingDemo,
+      box:         this._renderBoxDemo,
+      resources:   this._renderResourceDemo,
+      canvas:      this._renderCanvasDemo,
+      gpu:         this._renderGpuDemo,
+      streaming:   this._renderStreamingDemo,
+      composer:    this._renderComposerDemo,
+      navtiming:   this._renderNavTimingDemo,
+      rendering:   this._renderRenderingDemo,
+      landmark:    this._renderLandmarkDemo,
+      display:     this._renderDisplayDemo,
+      formdata:    this._renderFormDataDemo,
+      ime:         this._renderImeDemo,
+      dialog:      this._renderDialogDemo,
+      srcset:      this._renderSrcsetDemo,
     }
     const render = demos[this.demo] ?? this._renderFormDemo
     return render.call(this)
@@ -80,6 +126,8 @@ class FeDemoSuite extends LitElement {
       </section>
     `
   }
+
+  // ── existing demos ──────────────────────────────────────────
 
   _renderFormDemo() {
     return this._shell('Constraint Validation Playground', html`
@@ -245,11 +293,240 @@ class FeDemoSuite extends LitElement {
     `)
   }
 
+  // ── Part II demos ────────────────────────────────────────────
+
+  _renderLandmarkDemo() {
+    const active = this._activeLandmark
+    return this._shell('Landmark Regions 導覽地圖', html`
+      <p style="font-size:0.84rem;color:var(--color-text-muted);margin-bottom:12px">
+        點擊任一 landmark，查看對應的 ARIA role 與 screen reader 宣告方式：
+      </p>
+      <div class="landmark-layout">
+        ${LANDMARK_REGIONS.map(r => html`
+          <div class="landmark-block ${active === r ? 'active' : ''}"
+               @click=${() => { this._activeLandmark = r }}>
+            <code class="landmark-tag">&lt;${r.tag}&gt;</code>
+            <span class="landmark-label">${r.label}</span>
+            <span class="landmark-role">role="${r.role}"</span>
+          </div>
+        `)}
+      </div>
+      <div class="demo-output">
+        <strong>&lt;${active.tag}&gt;</strong> → <code>role="${active.role}"</code><br>
+        Screen reader 宣告：「${active.announce}」<br>
+        <span style="color:var(--color-text-muted);font-size:0.78rem">
+          VoiceOver: R 鍵 / NVDA: D 鍵 在 landmark 間跳轉
+        </span>
+      </div>
+    `)
+  }
+
+  _renderDisplayDemo() {
+    const mode = this._displayMode
+    const desc = DISPLAY_MODES.find(d => d.mode === mode)?.desc ?? ''
+    const wrapperStyle = mode === 'grid' || mode === 'inline-grid'
+      ? `display:${mode};grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px`
+      : `display:${mode};gap:8px`
+    return this._shell('CSS Display Level 3 視覺對比', html`
+      <p style="font-size:0.84rem;color:var(--color-text-muted);margin-bottom:10px">
+        點擊 display 值，觀察三個 box 在不同 formatting context 下的排列，以及容器本身是否流入行內：
+      </p>
+      <div class="prop-grid" style="margin-bottom:10px">
+        ${DISPLAY_MODES.map(d => html`
+          <button class="prop-btn ${mode === d.mode ? 'active' : ''}"
+                  @click=${() => { this._displayMode = d.mode }}>${d.mode}</button>
+        `)}
+      </div>
+      <div class="display-demo-frame">
+        <span class="display-demo-text">...前方文字&nbsp;</span>
+        <div style="${wrapperStyle}">
+          <div class="display-demo-box">Box A</div>
+          <div class="display-demo-box">Box B</div>
+          <div class="display-demo-box">Box C</div>
+        </div>
+        <span class="display-demo-text">&nbsp;後方文字...</span>
+      </div>
+      <div class="demo-output"><strong>display: ${mode}</strong> — ${desc}</div>
+    `)
+  }
+
+  _renderFormDataDemo() {
+    return this._shell('FormData 即時檢視器', html`
+      <p style="font-size:0.84rem;color:var(--color-text-muted);margin-bottom:10px">
+        填寫下方表單，觀察 <code>new FormData(form)</code> 如何即時收集欄位資料（包括 radio、checkbox）：
+      </p>
+      <form data-formdata-form
+            @input=${() => this._syncFormData()}
+            @change=${() => this._syncFormData()}
+            @submit=${e => e.preventDefault()}
+            style="display:grid;gap:10px;margin-bottom:12px">
+        <label style="display:grid;gap:4px;font-size:0.84rem;font-weight:700;color:var(--color-text-secondary)">
+          姓名
+          <input name="name" placeholder="例：王小明" class="demo-input-plain" />
+        </label>
+        <label style="display:grid;gap:4px;font-size:0.84rem;font-weight:700;color:var(--color-text-secondary)">
+          Email
+          <input name="email" type="email" placeholder="name@example.com" class="demo-input-plain" />
+        </label>
+        <div style="display:flex;gap:16px;font-size:0.84rem;font-weight:700;color:var(--color-text-secondary);align-items:center;flex-wrap:wrap">
+          職位：
+          <label style="font-weight:400;display:flex;align-items:center;gap:6px">
+            <input type="radio" name="role" value="frontend"> 前端
+          </label>
+          <label style="font-weight:400;display:flex;align-items:center;gap:6px">
+            <input type="radio" name="role" value="backend"> 後端
+          </label>
+          <label style="font-weight:400;display:flex;align-items:center;gap:6px">
+            <input type="radio" name="role" value="fullstack"> 全端
+          </label>
+        </div>
+        <label style="font-size:0.84rem;display:flex;align-items:center;gap:8px">
+          <input type="checkbox" name="newsletter" value="yes">
+          <span>訂閱電子報</span>
+        </label>
+      </form>
+      <div class="demo-output" style="font-size:0.8rem;white-space:pre;font-family:var(--font-mono)">${this._formDataOutput || '（尚未填寫任何欄位）'}</div>
+    `)
+  }
+
+  _renderImeDemo() {
+    const composing = this._imeComposing
+    const log = this._imeLog
+    return this._shell('IME Composition + Enter 攔截', html`
+      <p style="font-size:0.84rem;color:var(--color-text-muted);margin-bottom:10px">
+        用中文輸入法（注音 / 拼音）打字，觀察 <code>compositionstart</code> / <code>compositionend</code> 事件，以及 Enter 鍵的攔截行為：
+      </p>
+      <input class="demo-input-plain"
+             style="width:100%;margin-bottom:10px;box-sizing:border-box"
+             placeholder="嘗試用注音或拼音輸入，再按 Enter..."
+             @compositionstart=${() => {
+               this._imeComposing = true
+               this._imeLog = [...this._imeLog.slice(-5), 'compositionstart — Enter 現在是「選字確認」，不應觸發送出']
+             }}
+             @compositionend=${() => {
+               this._imeComposing = false
+               this._imeLog = [...this._imeLog.slice(-5), 'compositionend — 選字完成，Enter 恢復送出語意']
+             }}
+             @keydown=${e => {
+               if (e.key !== 'Enter') return
+               e.preventDefault()
+               if (e.isComposing || this._imeComposing) {
+                 this._imeLog = [...this._imeLog.slice(-5), 'keydown Enter — isComposing=true，已攔截（不觸發送出）']
+               } else {
+                 this._imeLog = [...this._imeLog.slice(-5), 'keydown Enter — isComposing=false，觸發送出']
+               }
+             }}
+      />
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <span style="font-size:0.84rem;color:var(--color-text-secondary)">isComposing：</span>
+        <span class="ime-badge ${composing ? 'composing' : 'idle'}">${composing ? 'true（選字中）' : 'false（待機）'}</span>
+        <button class="demo-button"
+                style="margin-left:auto;padding:0 10px;font-size:0.78rem;min-height:28px"
+                @click=${() => { this._imeLog = [] }}>清除記錄</button>
+      </div>
+      <div class="demo-output" style="font-size:0.78rem;font-family:var(--font-mono);min-height:72px;white-space:pre-wrap">${log.length ? log.join('\n') : '事件記錄會出現在這裡...'}</div>
+    `)
+  }
+
+  _renderDialogDemo() {
+    return this._shell('dialog vs popover 行為對比', html`
+      <p style="font-size:0.84rem;color:var(--color-text-muted);margin-bottom:12px">
+        點擊按鈕觀察三種 overlay 的差異：backdrop 是否出現、focus 是否被 trap、是否進入 top-layer：
+      </p>
+      <div class="demo-row" style="margin-bottom:12px">
+        <button class="demo-button" @click=${() => {
+          this.querySelector('[data-modal-dialog]')?.showModal()
+          this._dialogStatus = 'showModal()：backdrop 出現 · Tab 被困在 dialog 內 · ESC 可關閉 · 進入 top-layer'
+        }}>showModal()</button>
+        <button class="demo-button" @click=${() => {
+          this.querySelector('[data-modeless-dialog]')?.show()
+          this._dialogStatus = 'show()：無 backdrop · focus 不受 trap · 需手動關閉 · 在正常 stacking context'
+        }}>show()</button>
+        <button class="demo-button" @click=${() => {
+          this.querySelector('[data-popover-panel]')?.showPopover()
+          this._dialogStatus = 'showPopover()：點外部自動消失（light dismiss）· 不 trap focus · 進入 top-layer'
+        }}>popover="auto"</button>
+      </div>
+
+      <dialog data-modal-dialog class="demo-dialog">
+        <h3 style="margin:0 0 8px;font-size:1rem">Modal Dialog（showModal）</h3>
+        <p style="margin:0 0 12px;font-size:0.84rem;color:var(--color-text-secondary)">
+          backdrop 阻擋背景點擊 · Tab 被 trap 在此 · ESC 關閉 · 進入 top-layer
+        </p>
+        <button class="demo-button" @click=${() => this.querySelector('[data-modal-dialog]').close()}>關閉</button>
+      </dialog>
+
+      <dialog data-modeless-dialog class="demo-dialog demo-dialog-modeless">
+        <h3 style="margin:0 0 8px;font-size:1rem">Non-modal Dialog（show）</h3>
+        <p style="margin:0 0 12px;font-size:0.84rem;color:var(--color-text-secondary)">
+          無 backdrop · focus 不受限 · 不在 top-layer · 需手動關閉
+        </p>
+        <button class="demo-button" @click=${() => this.querySelector('[data-modeless-dialog]').close()}>關閉</button>
+      </dialog>
+
+      <div data-popover-panel popover="auto" class="demo-popover">
+        <h3 style="margin:0 0 8px;font-size:1rem">Popover（auto）</h3>
+        <p style="margin:0;font-size:0.84rem;color:var(--color-text-secondary)">
+          點此區域外自動消失（light dismiss）· 不 trap focus · 進入 top-layer
+        </p>
+      </div>
+
+      <div class="demo-output">${this._dialogStatus || '點擊上方按鈕，觀察 backdrop、focus trap 與關閉行為的差異。'}</div>
+    `)
+  }
+
+  _renderSrcsetDemo() {
+    const vw = this._srcsetWidth
+    const dpr = this._srcsetDpr
+    const displayWidth = vw >= 960 ? 720 : vw
+    const needed = displayWidth * dpr
+    const selected = SRCSET_IMAGES.find(img => img.w >= needed) ?? SRCSET_IMAGES[SRCSET_IMAGES.length - 1]
+    return this._shell('srcset + sizes 選圖計算機', html`
+      <p style="font-size:0.84rem;color:var(--color-text-muted);margin-bottom:12px">
+        調整 viewport 寬度與 DPR，觀察瀏覽器如何從 srcset 中選出最適合的圖片：
+      </p>
+      <div style="display:grid;gap:12px;margin-bottom:14px">
+        <label style="display:grid;gap:6px;font-size:0.84rem;color:var(--color-text-secondary);font-weight:700">
+          Viewport 寬度：<strong style="color:var(--color-text);font-size:1rem">${vw}px</strong>
+          <input type="range" min="320" max="1920" step="10" .value=${String(vw)}
+                 @input=${e => { this._srcsetWidth = Number(e.target.value) }} />
+        </label>
+        <div style="display:flex;align-items:center;gap:10px;font-size:0.84rem;color:var(--color-text-secondary);font-weight:700">
+          DPR：
+          ${[1, 2, 3].map(d => html`
+            <button class="prop-btn ${dpr === d ? 'active' : ''}"
+                    @click=${() => { this._srcsetDpr = d }}>${d}×</button>
+          `)}
+        </div>
+      </div>
+      <div class="demo-output" style="font-size:0.82rem;line-height:2;font-family:var(--font-mono)">
+        srcset: hero-400.jpg 400w, hero-800.jpg 800w, hero-1200.jpg 1200w, hero-1600.jpg 1600w<br>
+        sizes: (min-width: 960px) 720px, 100vw<br>
+        <br>
+        步驟 1 sizes 計算 layout 寬度：${vw >= 960 ? '720px（min-width:960px 命中）' : `${vw}px（100vw 命中）`}<br>
+        步驟 2 乘以 DPR：&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${displayWidth}px × ${dpr} = <strong>${needed}px</strong><br>
+        步驟 3 選最小但 &gt;= ${needed}px：<strong style="color:var(--color-accent)">${selected.url}（${selected.w}w）</strong>
+      </div>
+    `)
+  }
+
+  // ── helpers ──────────────────────────────────────────────────
+
   _reportValidity(input) {
     const output = this.querySelector('[data-validity-output]')
     if (!output) return
     const validity = input.validity
     output.textContent = `valid=${validity.valid}, valueMissing=${validity.valueMissing}, typeMismatch=${validity.typeMismatch}, tooShort=${validity.tooShort}`
+  }
+
+  _syncFormData() {
+    const form = this.querySelector('[data-formdata-form]')
+    if (!form) return
+    const fd = new FormData(form)
+    const entries = [...fd.entries()]
+    this._formDataOutput = entries.length === 0
+      ? '（尚未填寫任何欄位）'
+      : 'new FormData(form):\n' + entries.map(([k, v]) => `  "${k}" => "${v}"`).join('\n')
   }
 
   _drawCanvas(mode = 'normal') {
