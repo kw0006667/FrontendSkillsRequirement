@@ -82,6 +82,20 @@ class FeDemoSuite extends LitElement {
     _cacheStrategy:  { state: true },
     _cacheLog:       { state: true },
     _vitalsTab:      { state: true },
+    // Part V Wasm demos
+    _wasmExecStep:       { state: true },
+    _wasmExecLog:        { state: true },
+    _wasmToolchain:      { state: true },
+    _wasmMemCells:       { state: true },
+    _wasmMemInput:       { state: true },
+    _wasmMemType:        { state: true },
+    _wasmBoundaryN:      { state: true },
+    _wasmBoundaryResult: { state: true },
+    _wasmUsecaseStep:    { state: true },
+    _wasmUsecaseAnswers: { state: true },
+    _wasmThreadsLog:     { state: true },
+    _wasmThreadsCount:   { state: true },
+    _wasmThreadsRunning: { state: true },
   }
 
   createRenderRoot() {
@@ -129,6 +143,20 @@ class FeDemoSuite extends LitElement {
     this._cacheStrategy = 'cache-first'
     this._cacheLog = []
     this._vitalsTab = 'lcp'
+    // Part V Wasm demos
+    this._wasmExecStep = 0
+    this._wasmExecLog = []
+    this._wasmToolchain = null
+    this._wasmMemCells = Array(16).fill(0)
+    this._wasmMemInput = '72'
+    this._wasmMemType = 'u8'
+    this._wasmBoundaryN = 1000
+    this._wasmBoundaryResult = null
+    this._wasmUsecaseStep = 0
+    this._wasmUsecaseAnswers = {}
+    this._wasmThreadsLog = []
+    this._wasmThreadsCount = 4
+    this._wasmThreadsRunning = false
   }
 
   firstUpdated() {
@@ -170,6 +198,12 @@ class FeDemoSuite extends LitElement {
       'font-display':   this._renderFontDisplayDemo,
       'cache-strategy': this._renderCacheStrategyDemo,
       'web-vitals':     this._renderWebVitalsDemo,
+      // Part V Wasm demos
+      'wasm-execution-model': this._renderWasmExecutionModelDemo,
+      'wasm-toolchain':       this._renderWasmToolchainDemo,
+      'wasm-memory':          this._renderWasmMemoryDemo,
+      'wasm-usecase':         this._renderWasmUsecaseDemo,
+      'wasm-threads':         this._renderWasmThreadsDemo,
     }
     const render = demos[this.demo] ?? this._renderFormDemo
     return render.call(this)
@@ -1333,6 +1367,561 @@ class FeDemoSuite extends LitElement {
       }
     }
     ctx.putImageData(image, 0, 0)
+  }
+
+  // ── Part V: Wasm demos ───────────────────────────────────────
+
+  _renderWasmExecutionModelDemo() {
+    const steps = [
+      {
+        id: 0,
+        label: '初始狀態',
+        desc: '一個 .wasm 二進位檔案存在磁碟或網路上。它是靜態的，沒有任何執行狀態。',
+        boxes: [
+          { label: 'Module（靜態）', color: '#0a84ff', detail: '.wasm 二進位\n型別定義、函式、imports/exports 宣告', active: false },
+          { label: 'Instance', color: '#4caf7d', detail: '（尚未建立）', active: false },
+          { label: 'Linear Memory', color: '#f5a623', detail: '（尚未分配）', active: false },
+          { label: 'Table', color: '#9d6af5', detail: '（尚未初始化）', active: false },
+        ],
+      },
+      {
+        id: 1,
+        label: 'fetch .wasm',
+        desc: '瀏覽器開始下載 .wasm 檔案。使用 instantiateStreaming 時，下載過程中就開始編譯（Streaming Compilation）。',
+        boxes: [
+          { label: 'Module（下載中...）', color: '#0a84ff', detail: '正在從網路下載 .wasm bytes\n同時進行 Streaming Compile', active: true },
+          { label: 'Instance', color: '#4caf7d', detail: '（等待 Module 就緒）', active: false },
+          { label: 'Linear Memory', color: '#f5a623', detail: '（等待 instantiate）', active: false },
+          { label: 'Table', color: '#9d6af5', detail: '（等待 instantiate）', active: false },
+        ],
+      },
+      {
+        id: 2,
+        label: 'compile + instantiate',
+        desc: 'WebAssembly.instantiateStreaming() 完成：Module 編譯完畢，Instance 建立，Memory 和 Table 初始化。',
+        boxes: [
+          { label: 'Module ✓', color: '#0a84ff', detail: '已編譯完成\n包含函式定義的機器碼\n可被多次 instantiate', active: true },
+          { label: 'Instance ✓', color: '#4caf7d', detail: '執行期狀態\nprogram counter、call stack\nexports 物件', active: true },
+          { label: 'Linear Memory ✓', color: '#f5a623', detail: 'new WebAssembly.Memory()\n初始 16 pages = 1MB\n可擴展到 maximum', active: true },
+          { label: 'Table ✓', color: '#9d6af5', detail: 'funcref 陣列\n用於間接函式呼叫\n（virtual dispatch）', active: true },
+        ],
+      },
+      {
+        id: 3,
+        label: '呼叫 exports',
+        desc: 'JavaScript 透過 instance.exports 呼叫 Wasm 函式，並透過 TypedArray view 讀寫 Linear Memory。',
+        boxes: [
+          { label: 'JS 呼叫', color: '#58b5ff', detail: 'instance.exports.process(ptr, len)\n→ boundary crossing\n→ Wasm 執行', active: true },
+          { label: 'Instance（執行中）', color: '#4caf7d', detail: '函式在 Wasm stack machine\n上執行指令', active: true },
+          { label: 'Linear Memory（讀寫）', color: '#f5a623', detail: 'JS：new Uint8Array(memory.buffer)\nWasm：i32.load / i32.store\n共享同一個 ArrayBuffer', active: true },
+          { label: 'imports 回呼', color: '#ff7043', detail: 'Wasm 呼叫注入的 JS 函式\n（console.log、DOM 操作）\n→ 另一次 boundary crossing', active: false },
+        ],
+      },
+    ]
+
+    const current = steps[this._wasmExecStep]
+    const log = this._wasmExecLog
+
+    return this._shell('Wasm 執行模型：Module → Instance → Memory 互動演示', html`
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        ${steps.map(s => html`
+          <button class="prop-btn ${this._wasmExecStep === s.id ? 'active' : ''}"
+                  @click=${() => {
+                    this._wasmExecStep = s.id
+                    this._wasmExecLog = [...log, `[步驟 ${s.id}] ${s.label}: ${s.desc.slice(0, 60)}...`].slice(-4)
+                  }}>
+            ${s.id}. ${s.label}
+          </button>
+        `)}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        ${current.boxes.map(box => html`
+          <div style="
+            border: 2px solid ${box.active ? box.color : 'var(--color-border)'};
+            border-radius:var(--radius-sm);padding:10px;
+            opacity:${box.active ? 1 : 0.4};
+            transition:all 0.3s ease;
+            background:${box.active ? box.color + '15' : 'transparent'}
+          ">
+            <div style="font-size:0.8rem;font-weight:700;color:${box.active ? box.color : 'var(--color-text-muted)'};margin-bottom:6px">${box.label}</div>
+            <div style="font-size:0.7rem;font-family:var(--font-mono);color:var(--color-text-secondary);white-space:pre-line;line-height:1.6">${box.detail}</div>
+          </div>
+        `)}
+      </div>
+
+      <div style="padding:10px 12px;background:var(--color-bg-soft);border-radius:var(--radius-sm);border-left:3px solid #0a84ff;margin-bottom:10px">
+        <div style="font-size:0.78rem;color:var(--color-text-secondary);line-height:1.7">${current.desc}</div>
+      </div>
+
+      <div class="demo-output" style="font-size:0.72rem;font-family:var(--font-mono);min-height:70px;white-space:pre;line-height:1.8">
+        ${log.length ? log.join('\n') : '點擊步驟按鈕觀察 Wasm 執行模型的各個階段...'}
+      </div>
+    `)
+  }
+
+  _renderWasmToolchainDemo() {
+    const toolchains = [
+      {
+        id: 'emscripten',
+        name: 'Emscripten（C/C++）',
+        color: '#e8505b',
+        bundle: '5-20 MB',
+        perf: '★★★★',
+        learning: '★★',
+        ecosystem: '★★★★★',
+        pros: ['移植既有 C++ codebase', 'POSIX 相容層（fopen、pthreads）', 'Asyncify 處理 blocking 呼叫', 'Figma / AutoCAD 的選擇'],
+        cons: ['bundle 大（含相容層）', '建置環境複雜', 'Debug 體驗一般'],
+        when: '有既有 C/C++ codebase 需要移植到瀏覽器',
+      },
+      {
+        id: 'rust',
+        name: 'Rust + wasm-bindgen',
+        color: '#f5a623',
+        bundle: '10-500 KB',
+        perf: '★★★★★',
+        learning: '★★★',
+        ecosystem: '★★★',
+        pros: ['最小 bundle（無 GC 無 runtime）', '完整 TypeScript 型別定義', 'wasm-pack → npm 直接發布', '最高效能上界'],
+        cons: ['Rust 學習曲線高', '生態系較小', '無法直接用 C++ 庫'],
+        when: '需要最小 bundle + 最高效能，且團隊有 Rust 能力',
+      },
+      {
+        id: 'assemblyscript',
+        name: 'AssemblyScript（TypeScript 子集）',
+        color: '#4caf7d',
+        bundle: '50-500 KB',
+        perf: '★★★',
+        learning: '★★★★★',
+        ecosystem: '★★',
+        pros: ['TypeScript 語法（最低學習成本）', 'bundle 體積合理', '適合簡單計算核心'],
+        cons: ['不是完整 TypeScript（無 union types）', '效能上界低於 Rust/C++', '生態系很小'],
+        when: '純 TypeScript 團隊，計算需求中等，不想學新語言',
+      },
+      {
+        id: 'blazor',
+        name: 'Blazor WebAssembly（C#/.NET）',
+        color: '#512bd4',
+        bundle: '3-15 MB',
+        perf: '★★★',
+        learning: '★★★★（C# 開發者）',
+        ecosystem: '★★★★（.NET 生態）',
+        pros: ['C# 技術棧一致（前後端共享程式碼）', 'Razor 元件模型（類 Vue/React）', '.NET 8 AOT 改善效能', 'Microsoft 長期支援'],
+        cons: ['首次載入大（3-15MB）', '首次載入慢', 'JS 互通相對複雜', 'AOT 建置需要 10-30 分鐘'],
+        when: '純 C# 團隊，內部工具，首次載入時間不是最高優先',
+      },
+    ]
+
+    const selected = this._wasmToolchain ? toolchains.find(t => t.id === this._wasmToolchain) : null
+
+    return this._shell('Wasm Toolchain 選型比較', html`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        ${toolchains.map(t => html`
+          <button
+            style="
+              border:2px solid ${this._wasmToolchain === t.id ? t.color : 'var(--color-border)'};
+              border-radius:var(--radius-sm);
+              padding:8px 12px;
+              background:${this._wasmToolchain === t.id ? t.color + '15' : 'transparent'};
+              cursor:pointer;
+              text-align:left;
+              transition:all 0.2s;
+            "
+            @click=${() => { this._wasmToolchain = this._wasmToolchain === t.id ? null : t.id }}>
+            <div style="font-weight:700;font-size:0.82rem;color:${this._wasmToolchain === t.id ? t.color : 'var(--color-text)'}">${t.name}</div>
+            <div style="font-size:0.72rem;color:var(--color-text-muted);margin-top:2px">Bundle: ${t.bundle}</div>
+          </button>
+        `)}
+      </div>
+
+      ${selected ? html`
+        <div style="border:2px solid ${selected.color};border-radius:var(--radius-sm);padding:12px;margin-bottom:10px">
+          <div style="font-weight:700;font-size:0.9rem;color:${selected.color};margin-bottom:8px">${selected.name}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.75rem;margin-bottom:10px">
+            <div><span style="color:var(--color-text-muted)">Bundle 大小：</span><strong>${selected.bundle}</strong></div>
+            <div><span style="color:var(--color-text-muted)">效能上界：</span><strong>${selected.perf}</strong></div>
+            <div><span style="color:var(--color-text-muted)">學習曲線：</span><strong>${selected.learning}</strong></div>
+            <div><span style="color:var(--color-text-muted)">生態系：</span><strong>${selected.ecosystem}</strong></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            <div>
+              <div style="font-size:0.75rem;font-weight:700;color:#4caf7d;margin-bottom:4px">優點</div>
+              ${selected.pros.map(p => html`<div style="font-size:0.72rem;color:var(--color-text-secondary);margin-bottom:3px">✓ ${p}</div>`)}
+            </div>
+            <div>
+              <div style="font-size:0.75rem;font-weight:700;color:#e8505b;margin-bottom:4px">缺點</div>
+              ${selected.cons.map(c => html`<div style="font-size:0.72rem;color:var(--color-text-secondary);margin-bottom:3px">✗ ${c}</div>`)}
+            </div>
+          </div>
+          <div style="background:var(--color-bg-soft);border-radius:4px;padding:8px;font-size:0.75rem;border-left:3px solid ${selected.color}">
+            <strong>適用場景：</strong> ${selected.when}
+          </div>
+        </div>
+      ` : html`
+        <div class="demo-output" style="font-size:0.78rem;line-height:1.8;min-height:60px">
+          點擊上方任一 toolchain 查看詳細比較...
+        </div>
+      `}
+
+      <div style="font-size:0.72rem;color:var(--color-text-muted);margin-top:6px">
+        ⚡ 選型原則：先看既有 codebase → 再看 bundle 預算 → 再看團隊能力 → 最後才看效能需求
+      </div>
+    `)
+  }
+
+  _renderWasmMemoryDemo() {
+    const cells = this._wasmMemCells
+    const inputVal = this._wasmMemInput
+    const memType = this._wasmMemType
+
+    const typeOptions = [
+      { id: 'u8',  label: 'Uint8Array',        bytes: 1, desc: '8 位元無符號整數（0-255）' },
+      { id: 'i32', label: 'Int32Array',         bytes: 4, desc: '32 位元有符號整數（±2^31）' },
+      { id: 'f32', label: 'Float32Array',       bytes: 4, desc: '32 位元浮點數（IEEE 754）' },
+      { id: 'f64', label: 'Float64Array',       bytes: 8, desc: '64 位元浮點數（JS number）' },
+    ]
+
+    const currentType = typeOptions.find(t => t.id === memType) ?? typeOptions[0]
+
+    const writeToMemory = () => {
+      const newCells = [...cells]
+      const val = parseFloat(inputVal)
+      if (isNaN(val)) return
+
+      if (memType === 'u8') {
+        newCells[0] = Math.max(0, Math.min(255, Math.round(val)))
+      } else if (memType === 'i32') {
+        const buf = new ArrayBuffer(4)
+        new Int32Array(buf)[0] = Math.round(val)
+        const bytes = new Uint8Array(buf)
+        for (let i = 0; i < 4; i++) newCells[i] = bytes[i]
+      } else if (memType === 'f32') {
+        const buf = new ArrayBuffer(4)
+        new Float32Array(buf)[0] = val
+        const bytes = new Uint8Array(buf)
+        for (let i = 0; i < 4; i++) newCells[i] = bytes[i]
+      } else if (memType === 'f64') {
+        const buf = new ArrayBuffer(8)
+        new Float64Array(buf)[0] = val
+        const bytes = new Uint8Array(buf)
+        for (let i = 0; i < 8; i++) newCells[i] = bytes[i]
+      }
+      this._wasmMemCells = newCells
+    }
+
+    const clearMemory = () => {
+      this._wasmMemCells = Array(16).fill(0)
+    }
+
+    const readAsType = () => {
+      if (cells.every(c => c === 0)) return '（記憶體為空）'
+      const buf = new ArrayBuffer(16)
+      const view = new Uint8Array(buf)
+      cells.forEach((c, i) => { view[i] = c })
+      if (memType === 'u8') return `[${cells.slice(0,8).join(', ')}]`
+      if (memType === 'i32') return `[${new Int32Array(buf)[0]}, ${new Int32Array(buf)[1]}, ...]`
+      if (memType === 'f32') return `[${new Float32Array(buf)[0].toFixed(4)}, ${new Float32Array(buf)[1].toFixed(4)}, ...]`
+      if (memType === 'f64') return `[${new Float64Array(buf)[0].toFixed(6)}, ...]`
+      return ''
+    }
+
+    const highlightCount = currentType.bytes
+
+    return this._shell('Linear Memory 視覺化：TypedArray view 零拷貝模式', html`
+      <div style="margin-bottom:12px">
+        <div style="font-size:0.78rem;font-weight:700;color:var(--color-text-secondary);margin-bottom:6px">
+          選擇 TypedArray 型別（決定如何解讀記憶體中的 bytes）
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+          ${typeOptions.map(t => html`
+            <button class="prop-btn ${memType === t.id ? 'active' : ''}"
+                    @click=${() => { this._wasmMemType = t.id }}>
+              ${t.label}
+            </button>
+          `)}
+        </div>
+        <div style="font-size:0.72rem;color:var(--color-text-muted);margin-bottom:10px">
+          ${currentType.desc}（每個值佔 ${currentType.bytes} bytes）
+        </div>
+      </div>
+
+      <div style="font-size:0.75rem;font-weight:700;color:var(--color-text-secondary);margin-bottom:6px">
+        Linear Memory（16 bytes，以十六進位和十進位顯示）
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:4px;margin-bottom:12px;font-family:var(--font-mono);font-size:0.7rem">
+        ${cells.map((cell, i) => html`
+          <div style="
+            text-align:center;
+            border:1px solid ${i < highlightCount ? '#f5a623' : 'var(--color-border)'};
+            border-radius:4px;
+            padding:6px 4px;
+            background:${cell > 0 ? '#f5a62320' : 'var(--color-bg-soft)'};
+            border-color:${i < highlightCount ? '#f5a623' : (cell > 0 ? '#f5a62360' : 'var(--color-border)')};
+          ">
+            <div style="color:var(--color-text-muted);font-size:0.6rem">${String(i).padStart(2, '0')}</div>
+            <div style="color:${cell > 0 ? '#f5a623' : 'var(--color-text-secondary)'}">
+              ${cell.toString(16).padStart(2, '0').toUpperCase()}
+            </div>
+            <div style="color:var(--color-text-muted);font-size:0.6rem">${cell}</div>
+          </div>
+        `)}
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:120px">
+          <div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:4px">寫入值</div>
+          <input
+            type="number"
+            value=${inputVal}
+            @input=${e => { this._wasmMemInput = e.target.value }}
+            style="width:100%;padding:6px 8px;font-size:0.85rem;font-family:var(--font-mono);border:1px solid var(--color-border);border-radius:var(--radius-sm);background:var(--color-bg);color:var(--color-text)"
+          />
+        </div>
+        <button class="prop-btn active" @click=${writeToMemory}>寫入 Memory</button>
+        <button class="prop-btn" @click=${clearMemory}>清空</button>
+      </div>
+
+      <div class="demo-output" style="font-size:0.75rem;font-family:var(--font-mono);line-height:1.8;min-height:60px">
+        <strong>JS 讀取方式：</strong>new ${currentType.label}(memory.buffer, 0, ${Math.floor(16 / currentType.bytes)})\n<strong>讀取結果：</strong>${readAsType()}\n\n<span style="color:var(--color-text-muted)">橘色邊框 = 當前型別的一個值佔用的 bytes（${highlightCount} bytes）\n零拷貝：JS 和 Wasm 讀寫的是同一個 ArrayBuffer！</span>
+      </div>
+    `)
+  }
+
+  _renderWasmUsecaseDemo() {
+    const questions = [
+      {
+        id: 'profiling',
+        text: '你有 profiling 數據證明 JavaScript 的計算是效能瓶頸嗎？',
+        yes: '有，Chrome DevTools Performance 顯示 JS 計算佔 50%+ 的 frame time',
+        no: '沒有，只是「感覺很慢」或猜測可能需要 Wasm',
+        tip: '沒有 profiling 數據就引入 Wasm 是過早優化。先 profiling，再決定。',
+      },
+      {
+        id: 'batch',
+        text: '你的計算可以批次處理嗎？（整個陣列或整張圖片一次傳入，而不是逐個元素呼叫）',
+        yes: '可以，輸入資料可以整批傳入 Wasm 記憶體一次處理',
+        no: '不行，每次計算都需要存取 DOM 或頻繁與 JS 互動',
+        tip: '頻繁的 JS/Wasm boundary crossing 可能讓 Wasm 比純 JS 更慢。',
+      },
+      {
+        id: 'native',
+        text: '你有既有的 native 程式碼（C/C++/Rust）需要移植，或者計算需求明顯超過 JS 能做到的？',
+        yes: '有，我們有 C++ 庫 / Rust 模組，或需要接近原生的效能',
+        no: '沒有，這是全新的業務邏輯，暫時只有 JS 實作',
+        tip: '對全新邏輯，先用 JS 實作並 profiling，確認需要再考慮 Wasm。',
+      },
+      {
+        id: 'maintain',
+        text: '你的團隊有能力長期維護 Wasm toolchain（Rust/C++/AssemblyScript 之一）嗎？',
+        yes: '有，至少有一位工程師熟悉相關語言',
+        no: '沒有，團隊只有 TypeScript/JavaScript 工程師',
+        tip: '沒有人能維護的 Wasm 模組是技術債，長遠成本可能超過效能收益。',
+      },
+    ]
+
+    const answers = this._wasmUsecaseAnswers
+    const allAnswered = questions.every(q => answers[q.id] !== undefined)
+    const yesCount = Object.values(answers).filter(v => v === 'yes').length
+
+    const getRecommendation = () => {
+      if (yesCount === 4) return { level: 'strong', text: '✅ 強烈建議引入 Wasm', detail: '四個條件全部滿足：有 profiling 依據、計算模式適合批次、有 native 程式碼或高效能需求、有能力維護。選擇合適的 toolchain（見 ch17）並開始。' }
+      if (yesCount === 3) return { level: 'maybe', text: '⚠ 可以考慮，但要注意不滿足的條件', detail: '三個條件滿足，但需要解決不滿足的那個：若是 profiling 缺失，先量測；若是維護能力不足，先培養一位工程師。' }
+      if (yesCount === 2) return { level: 'caution', text: '⚠ 謹慎評估，成本可能超過收益', detail: '只有兩個條件滿足。建議先在 JS 層做深度優化（Web Worker、SIMD 替代、演算法改善），再重新評估。' }
+      return { level: 'no', text: '❌ 目前不建議引入 Wasm', detail: '滿足條件不足。引入 Wasm 的開發和維護成本，在當前場景很可能超過效能收益。先專注在 JS 優化。' }
+    }
+
+    const rec = allAnswered ? getRecommendation() : null
+    const recColors = { strong: '#4caf7d', maybe: '#f5a623', caution: '#ff7043', no: '#e8505b' }
+
+    return this._shell('Wasm 適用場景決策輔助', html`
+      <div style="margin-bottom:10px">
+        <div style="font-size:0.8rem;font-weight:700;color:var(--color-text-secondary);margin-bottom:2px">
+          回答以下 4 個問題，評估你的場景是否適合引入 Wasm
+        </div>
+      </div>
+
+      ${questions.map((q, qi) => html`
+        <div style="
+          border:1px solid ${answers[q.id] ? (answers[q.id] === 'yes' ? '#4caf7d' : '#e8505b') : 'var(--color-border)'};
+          border-radius:var(--radius-sm);
+          padding:10px;
+          margin-bottom:8px;
+          background:${answers[q.id] ? (answers[q.id] === 'yes' ? '#4caf7d10' : '#e8505b10') : 'transparent'};
+        ">
+          <div style="font-size:0.8rem;font-weight:700;margin-bottom:8px;color:var(--color-text)">
+            Q${qi + 1}. ${q.text}
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+            <button
+              class="prop-btn ${answers[q.id] === 'yes' ? 'active' : ''}"
+              style="${answers[q.id] === 'yes' ? 'background:#4caf7d20;border-color:#4caf7d' : ''}"
+              @click=${() => { this._wasmUsecaseAnswers = { ...answers, [q.id]: 'yes' } }}>
+              ✅ ${q.yes.split('，')[0]}
+            </button>
+            <button
+              class="prop-btn ${answers[q.id] === 'no' ? 'active' : ''}"
+              style="${answers[q.id] === 'no' ? 'background:#e8505b20;border-color:#e8505b' : ''}"
+              @click=${() => { this._wasmUsecaseAnswers = { ...answers, [q.id]: 'no' } }}>
+              ❌ ${q.no.split('，')[0]}
+            </button>
+          </div>
+          ${answers[q.id] === 'no' ? html`
+            <div style="font-size:0.72rem;color:#f5a623;padding-left:4px">💡 ${q.tip}</div>
+          ` : ''}
+        </div>
+      `)}
+
+      ${rec ? html`
+        <div style="
+          border:2px solid ${recColors[rec.level]};
+          border-radius:var(--radius-sm);
+          padding:12px;
+          background:${recColors[rec.level]}15;
+          margin-top:4px;
+        ">
+          <div style="font-weight:700;font-size:0.9rem;color:${recColors[rec.level]};margin-bottom:6px">${rec.text}</div>
+          <div style="font-size:0.78rem;color:var(--color-text-secondary);line-height:1.7">${rec.detail}</div>
+        </div>
+      ` : html`
+        <div style="font-size:0.75rem;color:var(--color-text-muted);margin-top:6px">
+          回答全部 4 個問題後，會顯示綜合建議...
+        </div>
+      `}
+
+      <button class="prop-btn" style="margin-top:10px"
+              @click=${() => { this._wasmUsecaseAnswers = {} }}>
+        重新評估
+      </button>
+    `)
+  }
+
+  _renderWasmThreadsDemo() {
+    const log = this._wasmThreadsLog
+    const count = this._wasmThreadsCount
+    const running = this._wasmThreadsRunning
+
+    const simulate = async () => {
+      if (running) return
+      this._wasmThreadsRunning = true
+      const newLog = []
+
+      const ts = () => new Date().toLocaleTimeString('zh-TW', { hour12: false, fractionalSecondDigits: 2 })
+
+      const logStep = (msg) => {
+        newLog.push(msg)
+        this._wasmThreadsLog = [...newLog]
+      }
+
+      logStep(`[${ts()}] 檢查 Cross-Origin Isolation 狀態...`)
+      await new Promise(r => setTimeout(r, 200))
+
+      const isolated = typeof crossOriginIsolated !== 'undefined' ? crossOriginIsolated : false
+      logStep(`[${ts()}] crossOriginIsolated = ${isolated}`)
+      logStep(isolated
+        ? `[${ts()}] ✅ SharedArrayBuffer 可用（COOP + COEP headers 已設定）`
+        : `[${ts()}] ⚠ crossOriginIsolated = false（模擬模式）`
+      )
+
+      await new Promise(r => setTimeout(r, 300))
+      logStep(`[${ts()}] 建立共享記憶體：new WebAssembly.Memory({ initial:16, shared:true })`)
+
+      await new Promise(r => setTimeout(r, 200))
+      logStep(`[${ts()}] 建立 ${count} 個 Worker...`)
+
+      for (let i = 0; i < count; i++) {
+        await new Promise(r => setTimeout(r, 80))
+        logStep(`[${ts()}] Worker[${i}] 初始化，接收共享 memory`)
+      }
+
+      await new Promise(r => setTimeout(r, 300))
+      logStep(`[${ts()}] 分配任務：把圖片分成 ${count} 個水平條（每個 Worker 處理一條）`)
+
+      const startTime = performance.now()
+      const rowsPerWorker = Math.ceil(1080 / count)
+
+      const workerPromises = Array.from({ length: count }, async (_, i) => {
+        const start = i * rowsPerWorker
+        const end = Math.min((i + 1) * rowsPerWorker, 1080)
+        const delay = 150 + Math.random() * 200
+        await new Promise(r => setTimeout(r, delay))
+        return { workerId: i, rows: end - start, ms: Math.round(delay) }
+      })
+
+      const results = await Promise.all(workerPromises)
+      results.forEach(r => {
+        logStep(`[${ts()}] Worker[${r.workerId}] 完成：處理 ${r.rows} 行，耗時 ${r.ms}ms`)
+      })
+
+      const totalMs = Math.round(performance.now() - startTime)
+      const serialMs = results.reduce((sum, r) => sum + r.ms, 0)
+      logStep(`[${ts()}] ✅ 所有 Worker 完成！並行耗時：${totalMs}ms / 串行估計：${serialMs}ms`)
+      logStep(`[${ts()}] 加速比：${(serialMs / totalMs).toFixed(1)}x（理論最大 ${count}x）`)
+
+      this._wasmThreadsRunning = false
+    }
+
+    return this._shell('Wasm + Web Worker + SharedArrayBuffer 多執行緒模擬', html`
+      <div style="background:var(--color-bg-soft);border-radius:var(--radius-sm);padding:10px;margin-bottom:12px;font-size:0.75rem">
+        <div style="font-weight:700;margin-bottom:6px">前置條件：Cross-Origin Isolation</div>
+        <div style="display:grid;gap:4px;font-family:var(--font-mono)">
+          <div style="color:#4caf7d">Cross-Origin-Opener-Policy: same-origin</div>
+          <div style="color:#4caf7d">Cross-Origin-Embedder-Policy: require-corp</div>
+        </div>
+        <div style="margin-top:6px;color:var(--color-text-muted)">
+          沒有這兩個 header → <code>crossOriginIsolated = false</code> → SharedArrayBuffer 無法使用
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:0.75rem;color:var(--color-text-muted);margin-bottom:4px">Worker 數量</div>
+          <div style="display:flex;gap:4px">
+            ${[1, 2, 4, 8].map(n => html`
+              <button class="prop-btn ${count === n ? 'active' : ''}"
+                      @click=${() => { this._wasmThreadsCount = n }}>
+                ${n}
+              </button>
+            `)}
+          </div>
+        </div>
+        <button class="prop-btn active" style="align-self:flex-end"
+                ?disabled=${running}
+                @click=${simulate}>
+          ${running ? '執行中...' : '模擬多執行緒處理'}
+        </button>
+        <button class="prop-btn" style="align-self:flex-end"
+                @click=${() => { this._wasmThreadsLog = [] }}>
+          清空
+        </button>
+      </div>
+
+      <div style="
+        display:grid;
+        grid-template-columns:repeat(${count},1fr);
+        gap:4px;
+        margin-bottom:12px;
+        min-height:40px;
+      ">
+        ${Array.from({ length: count }, (_, i) => html`
+          <div style="
+            background:${running ? '#0a84ff30' : 'var(--color-bg-soft)'};
+            border:1px solid ${running ? '#0a84ff' : 'var(--color-border)'};
+            border-radius:4px;
+            padding:6px 4px;
+            text-align:center;
+            font-size:0.7rem;
+            font-family:var(--font-mono);
+            transition:all 0.3s;
+          ">
+            W${i}
+          </div>
+        `)}
+      </div>
+
+      <div class="demo-output" style="font-size:0.7rem;font-family:var(--font-mono);min-height:120px;max-height:200px;overflow-y:auto;white-space:pre;line-height:1.8">
+        ${log.length ? log.join('\n') : '點擊「模擬多執行緒處理」觀察 SharedArrayBuffer 多執行緒的工作流程...'}
+      </div>
+    `)
   }
 
   _startStream() {
