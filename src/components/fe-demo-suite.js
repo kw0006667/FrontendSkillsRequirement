@@ -74,6 +74,14 @@ class FeDemoSuite extends LitElement {
     _cascadeImp:     { state: true },
     _posType:        { state: true },
     _stickyScroll:   { state: true },
+    // Part IV Performance demos
+    _scriptMode:     { state: true },
+    _scriptLog:      { state: true },
+    _fontDisplay:    { state: true },
+    _fontLoaded:     { state: true },
+    _cacheStrategy:  { state: true },
+    _cacheLog:       { state: true },
+    _vitalsTab:      { state: true },
   }
 
   createRenderRoot() {
@@ -99,6 +107,7 @@ class FeDemoSuite extends LitElement {
     this._srcsetDpr = 2
     // Part III CSS demos
     this._flexGrow = [1, 1, 1]
+    // Part IV Performance demos (initialized later in constructor body)
     this._flexDir = 'row'
     this._flexJc = 'flex-start'
     this._flexAi = 'center'
@@ -112,6 +121,14 @@ class FeDemoSuite extends LitElement {
     this._cascadeImp = 'none'
     this._posType = 'relative'
     this._stickyScroll = 0
+    // Part IV Performance demos
+    this._scriptMode = 'default'
+    this._scriptLog = []
+    this._fontDisplay = 'swap'
+    this._fontLoaded = false
+    this._cacheStrategy = 'cache-first'
+    this._cacheLog = []
+    this._vitalsTab = 'lcp'
   }
 
   firstUpdated() {
@@ -141,13 +158,18 @@ class FeDemoSuite extends LitElement {
       dialog:      this._renderDialogDemo,
       srcset:      this._renderSrcsetDemo,
       // Part III CSS demos
-      flexbox:     this._renderFlexboxDemo,
-      grid:        this._renderGridDemo,
-      container:   this._renderContainerDemo,
-      cascade:     this._renderCascadeDemo,
-      darkmode:    this._renderDarkmodeDemo,
-      animation:   this._renderAnimationDemo,
-      positioning: this._renderPositioningDemo,
+      flexbox:        this._renderFlexboxDemo,
+      grid:           this._renderGridDemo,
+      container:      this._renderContainerDemo,
+      cascade:        this._renderCascadeDemo,
+      darkmode:       this._renderDarkmodeDemo,
+      animation:      this._renderAnimationDemo,
+      positioning:    this._renderPositioningDemo,
+      // Part IV Performance demos
+      'script-loading': this._renderScriptLoadingDemo,
+      'font-display':   this._renderFontDisplayDemo,
+      'cache-strategy': this._renderCacheStrategyDemo,
+      'web-vitals':     this._renderWebVitalsDemo,
     }
     const render = demos[this.demo] ?? this._renderFormDemo
     return render.call(this)
@@ -839,6 +861,420 @@ class FeDemoSuite extends LitElement {
         <div style="width:52px;height:52px;border-radius:var(--radius-sm);background:#f5a623;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:0.78rem;text-align:center">After</div>
       </div>
       <div class="demo-output" style="margin-top:12px;font-size:0.82rem">${desc}</div>
+    `)
+  }
+
+  // ── Part IV Performance demos ────────────────────────────────
+
+  _renderScriptLoadingDemo() {
+    const modes = [
+      {
+        id: 'default',
+        label: '<script>（同步）',
+        color: '#e8505b',
+        desc: 'Parser 暫停，等 script 下載完並執行完畢，才繼續解析 HTML。',
+        timeline: [
+          { label: 'HTML 解析', start: 0, end: 20, color: '#4caf7d' },
+          { label: '⏸ Parser 阻塞', start: 20, end: 25, color: '#e8505b' },
+          { label: 'Script 下載', start: 25, end: 55, color: '#f5a623' },
+          { label: 'Script 執行', start: 55, end: 70, color: '#9d6af5' },
+          { label: 'HTML 解析（續）', start: 70, end: 100, color: '#4caf7d' },
+        ],
+      },
+      {
+        id: 'async',
+        label: '<script async>',
+        color: '#f5a623',
+        desc: '下載與 HTML 解析並行，下載完立即中斷 parser 執行。多個 async script 不保順序。',
+        timeline: [
+          { label: 'HTML 解析', start: 0, end: 100, color: '#4caf7d' },
+          { label: 'Script 下載（並行）', start: 10, end: 40, color: '#f5a623' },
+          { label: '⏸ 執行（中斷）', start: 40, end: 55, color: '#9d6af5' },
+        ],
+      },
+      {
+        id: 'defer',
+        label: '<script defer>',
+        color: '#2ec7d3',
+        desc: '下載與 HTML 解析並行，等 HTML 完全解析後才按序執行（DOMContentLoaded 前）。',
+        timeline: [
+          { label: 'HTML 解析', start: 0, end: 75, color: '#4caf7d' },
+          { label: 'Script 下載（並行）', start: 10, end: 40, color: '#f5a623' },
+          { label: 'DOM 就緒，執行', start: 75, end: 90, color: '#9d6af5' },
+        ],
+      },
+      {
+        id: 'module',
+        label: '<script type="module">',
+        color: '#0a84ff',
+        desc: '預設 deferred，嚴格模式，支援頂層 await。下載 module graph（含所有 import）後按序執行。',
+        timeline: [
+          { label: 'HTML 解析', start: 0, end: 75, color: '#4caf7d' },
+          { label: 'Module graph 下載', start: 5, end: 50, color: '#f5a623' },
+          { label: 'DOM 就緒，執行', start: 75, end: 92, color: '#9d6af5' },
+        ],
+      },
+    ]
+    const active = modes.find(m => m.id === this._scriptMode) ?? modes[0]
+    return this._shell('script 載入模式時序對比', html`
+      <div class="prop-grid" style="margin-bottom:14px">
+        ${modes.map(m => html`
+          <button class="prop-btn ${this._scriptMode === m.id ? 'active' : ''}"
+                  @click=${() => { this._scriptMode = m.id }}
+                  style="font-size:0.76rem;font-family:var(--font-mono)">
+            ${m.label}
+          </button>
+        `)}
+      </div>
+      <div style="position:relative;height:120px;background:var(--color-bg-soft);border-radius:var(--radius-md);padding:10px 12px;overflow:hidden;margin-bottom:10px">
+        ${active.timeline.map((item, i) => html`
+          <div style="
+            position:absolute;
+            left:${item.start}%;
+            width:${item.end - item.start}%;
+            top:${12 + i * 22}px;
+            height:16px;
+            background:${item.color};
+            border-radius:3px;
+            display:flex;
+            align-items:center;
+            padding:0 5px;
+            font-size:0.65rem;
+            color:white;
+            font-weight:700;
+            white-space:nowrap;
+            overflow:hidden;
+            transition:all 0.4s ease
+          ">${item.label}</div>
+        `)}
+        <div style="position:absolute;bottom:6px;left:12px;right:12px;display:flex;justify-content:space-between;font-size:0.65rem;color:var(--color-text-muted)">
+          <span>0%</span><span>時間軸（相對）</span><span>100%</span>
+        </div>
+      </div>
+      <div class="demo-output" style="font-size:0.82rem;line-height:1.7">
+        <strong style="color:${active.color}">${active.label}</strong><br>
+        ${active.desc}
+      </div>
+      <div style="margin-top:10px;font-size:0.75rem;color:var(--color-text-muted);line-height:1.7">
+        <strong>選型原則：</strong>
+        第三方、無依賴腳本（GA、GTM）→ async；
+        頁面主邏輯、有依賴 → defer；
+        ESM 應用入口 → type="module"（預設 defer）；
+        同步 → 僅限 document.write() 等特殊情況，盡量避免。
+      </div>
+    `)
+  }
+
+  _renderFontDisplayDemo() {
+    const strategies = [
+      {
+        id: 'block',
+        label: 'block',
+        color: '#e8505b',
+        blockMs: 3000,
+        swapMs: Infinity,
+        desc: '文字最多隱藏 3 秒（FOIT）。Web font 下載完後替換。適合：字型對品牌至關重要且載入通常很快。',
+        cls: '中等（字型替換後可能有版面跳動）',
+      },
+      {
+        id: 'swap',
+        label: 'swap',
+        color: '#f5a623',
+        blockMs: 100,
+        swapMs: Infinity,
+        desc: '立即顯示 fallback（FOUT），Web font 下載完後任何時候都替換。適合：接受 FOUT，品牌字型一定要用。',
+        cls: '中高（字型替換時位移）',
+      },
+      {
+        id: 'fallback',
+        label: 'fallback',
+        color: '#2ec7d3',
+        blockMs: 100,
+        swapMs: 3000,
+        desc: '極短暫隱藏（0.1s），顯示 fallback，3 秒內若 web font 就緒才替換，之後放棄。平衡方案。',
+        cls: '低（3s 後不換）',
+      },
+      {
+        id: 'optional',
+        label: 'optional',
+        color: '#4caf7d',
+        blockMs: 100,
+        swapMs: 0,
+        desc: '0.1s 判斷：若字型已在快取則用，否則本次不替換。最安全的 CLS 防護，代價是首次訪問可能用 fallback。',
+        cls: '最低（不換字型）',
+      },
+    ]
+    const active = strategies.find(s => s.id === this._fontDisplay) ?? strategies[1]
+    const isLoaded = this._fontLoaded
+    const sampleStyle = isLoaded
+      ? 'font-family: Georgia, serif; font-size: 1.1rem; transition: font-family 0.3s;'
+      : 'font-family: system-ui, sans-serif; font-size: 1.1rem;'
+
+    return this._shell('font-display 策略模擬器', html`
+      <div class="prop-grid" style="margin-bottom:14px">
+        ${strategies.map(s => html`
+          <button class="prop-btn ${this._fontDisplay === s.id ? 'active' : ''}"
+                  @click=${() => { this._fontDisplay = s.id; this._fontLoaded = false }}>
+            ${s.id}
+          </button>
+        `)}
+      </div>
+      <div style="border:1px solid var(--color-border);border-radius:var(--radius-md);padding:16px;margin-bottom:12px;background:var(--color-bg-soft)">
+        <div style="font-size:0.72rem;color:var(--color-text-muted);margin-bottom:8px">
+          模擬文字區塊（Web font = Georgia；Fallback = system-ui）：
+        </div>
+        <div style="${sampleStyle}">
+          The quick brown fox jumps over the lazy dog.<br>
+          Senior Front-End Engineer 字型優化指南。
+        </div>
+        <div style="margin-top:10px;font-size:0.75rem;color:var(--color-text-muted)">
+          狀態：${isLoaded
+            ? html`<span style="color:#4caf7d;font-weight:700">Web font 已載入（Georgia 顯示中）</span>`
+            : html`<span style="color:${active.color};font-weight:700">使用 fallback font（system-ui）</span>`}
+        </div>
+      </div>
+      <button class="demo-button" @click=${() => { this._fontLoaded = !this._fontLoaded }}>
+        ${isLoaded ? '↺ 模擬重新載入（fallback 狀態）' : '▶ 模擬 Web font 載入完成'}
+      </button>
+      <div class="demo-output" style="margin-top:12px;font-size:0.8rem;line-height:1.8">
+        <strong style="color:${active.color}">font-display: ${active.id}</strong><br>
+        ${active.desc}<br>
+        <span style="color:var(--color-text-muted)">CLS 風險：${active.cls}</span>
+      </div>
+    `)
+  }
+
+  _renderCacheStrategyDemo() {
+    const strategies = [
+      {
+        id: 'cache-first',
+        label: 'Cache-First',
+        color: '#4caf7d',
+        desc: '先查快取，命中則返回，否則請求網路並更新快取。適合：靜態資源、不常變動的內容。',
+        flow: ['查 Cache', '命中？', '→ 返回快取', '未命中 → 請求 Network', '更新快取', '返回結果'],
+        pros: ['最快速度', '完全離線可用', '最省頻寬'],
+        cons: ['可能返回過時資料', '需要手動 cache bust'],
+      },
+      {
+        id: 'network-first',
+        label: 'Network-First',
+        color: '#0a84ff',
+        desc: '優先請求網路，失敗（超時/離線）才用快取。適合：必須最新的內容，但需要離線 fallback。',
+        flow: ['請求 Network', '成功 → 更新快取', '返回新資料', '失敗 → 查 Cache', '返回快取（離線 fallback）'],
+        pros: ['資料最新', '有離線 fallback'],
+        cons: ['慢網路下體驗差', '消耗更多頻寬'],
+      },
+      {
+        id: 'swr',
+        label: 'Stale-While-Revalidate',
+        color: '#9d6af5',
+        desc: '先返回快取（立即），同時背景更新快取。適合：可接受短暫過期但需要快速響應的內容。',
+        flow: ['查 Cache', '命中 → 立即返回快取', '同時 → 背景請求 Network', '更新快取供下次使用'],
+        pros: ['立即響應（0 delay）', '最終一致性', '自動後台更新'],
+        cons: ['首次返回可能是舊資料', '需要接受最終一致性'],
+      },
+    ]
+    const active = strategies.find(s => s.id === this._cacheStrategy) ?? strategies[2]
+    const log = this._cacheLog
+
+    return this._shell('Service Worker 快取策略模擬器', html`
+      <div class="prop-grid" style="margin-bottom:14px">
+        ${strategies.map(s => html`
+          <button class="prop-btn ${this._cacheStrategy === s.id ? 'active' : ''}"
+                  @click=${() => { this._cacheStrategy = s.id; this._cacheLog = [] }}>
+            ${s.label}
+          </button>
+        `)}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="demo-button" @click=${() => this._simulateCacheRequest(active, false)}>
+          模擬請求（快取命中）
+        </button>
+        <button class="demo-button" @click=${() => this._simulateCacheRequest(active, true)}>
+          模擬請求（快取未命中）
+        </button>
+        <button class="demo-button" style="background:var(--color-bg-soft);color:var(--color-text)" @click=${() => { this._cacheLog = [] }}>
+          清除記錄
+        </button>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:160px">
+          <div style="font-size:0.75rem;font-weight:700;color:var(--color-text-secondary);margin-bottom:6px">執行流程</div>
+          ${active.flow.map((step, i) => html`
+            <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;margin-bottom:4px">
+              <span style="width:18px;height:18px;border-radius:50%;background:${active.color};color:white;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:0.65rem">${i + 1}</span>
+              <span>${step}</span>
+            </div>
+          `)}
+        </div>
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:0.75rem;font-weight:700;color:#4caf7d;margin-bottom:4px">優點</div>
+          ${active.pros.map(p => html`<div style="font-size:0.75rem;margin-bottom:3px;color:var(--color-text-secondary)">✓ ${p}</div>`)}
+          <div style="font-size:0.75rem;font-weight:700;color:#e8505b;margin-top:8px;margin-bottom:4px">缺點</div>
+          ${active.cons.map(c => html`<div style="font-size:0.75rem;margin-bottom:3px;color:var(--color-text-secondary)">✗ ${c}</div>`)}
+        </div>
+      </div>
+      <div class="demo-output" style="font-size:0.75rem;font-family:var(--font-mono);min-height:80px;white-space:pre;line-height:1.8">
+        ${log.length ? log.join('\n') : '點擊按鈕模擬請求，觀察快取策略的決策過程...'}
+      </div>
+    `)
+  }
+
+  _simulateCacheRequest(strategy, cacheMiss) {
+    const ts = () => new Date().toLocaleTimeString('zh-TW', { hour12: false })
+    let log = []
+
+    if (strategy.id === 'cache-first') {
+      if (cacheMiss) {
+        log = [
+          `[${ts()}] Service Worker 攔截請求`,
+          `[${ts()}] 查詢 Cache → 未命中`,
+          `[${ts()}] 請求 Network...（等待中）`,
+          `[${ts()}] Network 回應 200 OK`,
+          `[${ts()}] 存入 Cache（供下次使用）`,
+          `[${ts()}] 返回 Network 回應給頁面`,
+        ]
+      } else {
+        log = [
+          `[${ts()}] Service Worker 攔截請求`,
+          `[${ts()}] 查詢 Cache → 命中！`,
+          `[${ts()}] 立即返回快取（0ms 等待）`,
+        ]
+      }
+    } else if (strategy.id === 'network-first') {
+      if (cacheMiss) {
+        log = [
+          `[${ts()}] Service Worker 攔截請求`,
+          `[${ts()}] 請求 Network...`,
+          `[${ts()}] Network 回應 200 OK`,
+          `[${ts()}] 存入 Cache（離線備用）`,
+          `[${ts()}] 返回最新資料`,
+        ]
+      } else {
+        log = [
+          `[${ts()}] Service Worker 攔截請求`,
+          `[${ts()}] 請求 Network... 失敗（離線或超時）`,
+          `[${ts()}] 查詢 Cache → 命中！`,
+          `[${ts()}] 返回快取（離線 fallback）`,
+          `[${ts()}] ⚠ 資料可能不是最新的`,
+        ]
+      }
+    } else {
+      // SWR
+      if (cacheMiss) {
+        log = [
+          `[${ts()}] Service Worker 攔截請求`,
+          `[${ts()}] 查詢 Cache → 未命中`,
+          `[${ts()}] 請求 Network...（等待中）`,
+          `[${ts()}] Network 回應 200 OK`,
+          `[${ts()}] 存入 Cache + 返回給頁面`,
+        ]
+      } else {
+        log = [
+          `[${ts()}] Service Worker 攔截請求`,
+          `[${ts()}] 查詢 Cache → 命中！`,
+          `[${ts()}] 立即返回快取（使用者不等待）`,
+          `[${ts()}] 同時：背景請求 Network...`,
+          `[${ts()}] Network 回應 → 更新 Cache（下次使用）`,
+        ]
+      }
+    }
+
+    this._cacheLog = log
+  }
+
+  _renderWebVitalsDemo() {
+    const tabs = [
+      { id: 'lcp', label: 'LCP', fullName: 'Largest Contentful Paint', unit: 'ms', good: 2500, poor: 4000, color: '#0a84ff' },
+      { id: 'inp', label: 'INP', fullName: 'Interaction to Next Paint', unit: 'ms', good: 200, poor: 500, color: '#9d6af5' },
+      { id: 'cls', label: 'CLS', fullName: 'Cumulative Layout Shift', unit: '', good: 0.1, poor: 0.25, color: '#f5a623' },
+    ]
+    const active = tabs.find(t => t.id === this._vitalsTab) ?? tabs[0]
+
+    const navEntry = typeof performance !== 'undefined' ? performance.getEntriesByType('navigation')[0] : null
+    const lcpEntries = typeof PerformanceObserver !== 'undefined'
+      ? performance.getEntriesByType('largest-contentful-paint')
+      : []
+    const lastLcp = lcpEntries[lcpEntries.length - 1]
+
+    const realValues = {
+      lcp: lastLcp ? Math.round(lastLcp.startTime) : null,
+      inp: null,
+      cls: null,
+    }
+
+    const exampleValues = {
+      lcp: { bad: 4200, ok: 3100, good: 1800, desc: '常見問題：LCP 圖片沒有 fetchpriority="high"，被其他資源搶佔頻寬' },
+      inp: { bad: 650, ok: 320, good: 120, desc: '常見問題：點擊事件 handler 中有同步的重計算，阻塞主執行緒 > 200ms' },
+      cls: { bad: 0.35, ok: 0.18, good: 0.04, desc: '常見問題：圖片沒有 width/height，或廣告插入在內容之上' },
+    }
+
+    const ex = exampleValues[active.id]
+    const real = realValues[active.id]
+
+    function ratingLabel(val, good, poor) {
+      if (val <= good) return { text: 'Good', color: '#4caf7d' }
+      if (val <= poor) return { text: 'Needs Improvement', color: '#f5a623' }
+      return { text: 'Poor', color: '#e8505b' }
+    }
+
+    function bar(val, good, poor, max, color) {
+      const pct = Math.min(100, (val / max) * 100)
+      const rating = ratingLabel(val, good, poor)
+      return html`
+        <div style="display:flex;align-items:center;gap:8px;font-size:0.78rem">
+          <div style="flex:1;background:var(--color-bg-soft);border-radius:4px;height:12px;overflow:hidden;position:relative">
+            <div style="width:${pct}%;height:100%;background:${rating.color};border-radius:4px;transition:width 0.5s ease"></div>
+          </div>
+          <span style="color:${rating.color};font-weight:700;min-width:60px">${val}${active.unit}</span>
+          <span style="color:${rating.color};font-weight:700;min-width:80px">${rating.text}</span>
+        </div>
+      `
+    }
+
+    const maxVal = { lcp: 5000, inp: 800, cls: 0.5 }[active.id]
+
+    return this._shell('Core Web Vitals 指標可視化', html`
+      <div class="prop-grid" style="margin-bottom:14px">
+        ${tabs.map(t => html`
+          <button class="prop-btn ${this._vitalsTab === t.id ? 'active' : ''}"
+                  @click=${() => { this._vitalsTab = t.id }}>
+            ${t.label}
+          </button>
+        `)}
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-weight:700;font-size:0.9rem;color:var(--color-text-secondary);margin-bottom:4px">
+          ${active.fullName}
+        </div>
+        <div style="display:flex;gap:16px;font-size:0.75rem;margin-bottom:12px;flex-wrap:wrap">
+          <span style="color:#4caf7d">● Good ≤ ${active.good}${active.unit}</span>
+          <span style="color:#f5a623">● Needs Improvement ≤ ${active.poor}${active.unit}</span>
+          <span style="color:#e8505b">● Poor &gt; ${active.poor}${active.unit}</span>
+        </div>
+        <div style="display:grid;gap:8px">
+          <div style="font-size:0.78rem;color:var(--color-text-muted);margin-bottom:4px">範例值比較：</div>
+          <div style="font-size:0.75rem;color:var(--color-text-secondary);margin-bottom:2px">差 → ${bar(ex.bad, active.good, active.poor, maxVal)}</div>
+          <div style="font-size:0.75rem;color:var(--color-text-secondary);margin-bottom:2px">普通 → ${bar(ex.ok, active.good, active.poor, maxVal)}</div>
+          <div style="font-size:0.75rem;color:var(--color-text-secondary);margin-bottom:2px">好 → ${bar(ex.good, active.good, active.poor, maxVal)}</div>
+        </div>
+        ${real !== null ? html`
+          <div style="margin-top:10px;padding:8px 12px;background:var(--color-bg-soft);border-radius:var(--radius-sm);border-left:3px solid ${active.color}">
+            <span style="font-size:0.78rem;color:var(--color-text-secondary)">本頁實測值：</span>
+            <strong style="font-size:0.9rem">${real}${active.unit}</strong>
+            <span style="font-size:0.75rem;margin-left:6px;color:${ratingLabel(real, active.good, active.poor).color}">
+              ${ratingLabel(real, active.good, active.poor).text}
+            </span>
+          </div>
+        ` : html`
+          <div style="margin-top:10px;font-size:0.75rem;color:var(--color-text-muted)">
+            （本頁的 ${active.label} 數據需要透過 PerformanceObserver 在實際頁面中收集）
+          </div>
+        `}
+      </div>
+      <div class="demo-output" style="font-size:0.78rem;line-height:1.8">
+        <strong>常見問題：</strong>${ex.desc}
+      </div>
     `)
   }
 
